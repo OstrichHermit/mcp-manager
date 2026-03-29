@@ -1,24 +1,26 @@
 # MCP Manager
 
-A lightweight MCP (Model Context Protocol) server for dynamically enabling and disabling other MCP servers, helping you save valuable context window space.
+中文 | **[English](README_EN.md)**
 
-Works with [Claude Code](https://claude.ai/claude-code) by modifying the `~/.claude.json` configuration file.
+一个轻量级的 MCP（Model Context Protocol）服务器，用于动态启用和禁用其他 MCP 服务器，帮助你节省宝贵的上下文窗口空间。
 
-## Features
+通过修改 `~/.claude.json` 配置文件，与 [Claude Code](https://claude.ai/claude-code) 配合使用。
 
-- `enable_mcp` - Enable an MCP server by removing it from the disabled list
-- `disable_mcp` - Disable an MCP server by adding it to the disabled list
-- `list_disabled_mcps` - List all currently disabled MCP servers
+## 功能
 
-## Installation
+- `enable_mcp` - 启用指定的 MCP 服务器（从禁用列表移除）
+- `disable_mcp` - 禁用指定的 MCP 服务器（添加到禁用列表）
+- `list_disabled_mcps` - 列出当前所有被禁用的 MCP 服务器
+
+## 安装
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Configuration
+## 配置
 
-Add this to your `.mcp.json` or `~/.claude.json`:
+在你的 `.mcp.json` 或 `~/.claude.json` 中添加：
 
 ```json
 {
@@ -31,51 +33,51 @@ Add this to your `.mcp.json` or `~/.claude.json`:
 }
 ```
 
-## Usage
+## 使用方法
 
-### Enable an MCP server
-
-```
-Use tool: mcp__mcp-manager__enable_mcp
-Arguments:
-- server_name: The MCP server name to enable (e.g. "12306", "moji-weather", "variflight")
-```
-
-### Disable an MCP server
+### 启用 MCP 服务器
 
 ```
-Use tool: mcp__mcp-manager__disable_mcp
-Arguments:
-- server_name: The MCP server name to disable
+使用工具：mcp__mcp-manager__enable_mcp
+参数：
+- server_name: 要启用的 MCP 服务器名称（例如 "12306", "moji-weather", "variflight"）
 ```
 
-### List disabled servers
+### 禁用 MCP 服务器
 
 ```
-Use tool: mcp__mcp-manager__list_disabled_mcps
-No arguments needed
+使用工具：mcp__mcp-manager__disable_mcp
+参数：
+- server_name: 要禁用的 MCP 服务器名称
 ```
 
-## How It Works
+### 查看禁用列表
 
-This MCP server reads and modifies the `disabledMcpServers` list in your `~/.claude.json` configuration file under the current workspace project entry.
+```
+使用工具：mcp__mcp-manager__list_disabled_mcps
+无需参数
+```
 
-## Important Note
+## 工作原理
 
-After enabling or disabling an MCP server, you need to restart Claude Code for the changes to take effect.
+这个 MCP 服务器通过读取和修改 `~/.claude.json` 配置文件中当前工作区项目下的 `disabledMcpServers` 列表来管理 MCP 服务器的启用/禁用状态。
 
-## Typical Workflow
+## 注意事项
 
-When you need to use an occasionally-used MCP server:
+启用或禁用 MCP 服务器后，需要重启 Claude Code 才能使更改生效。
 
-1. Use `enable_mcp` to enable it
-2. Restart Claude Code
-3. Use the MCP server's tools to complete your task
-4. Use `disable_mcp` to disable it
-5. Restart Claude Code
+## 典型使用场景
 
-This prevents rarely-used MCP servers from consuming valuable context window space.
+当你需要使用某个不常用的 MCP 服务器时：
 
-## License
+1. 使用 `enable_mcp` 启用它
+2. 重启 Claude Code
+3. 使用该 MCP 服务器的工具完成任务
+4. 使用 `disable_mcp` 禁用它
+5. 重启 Claude Code
+
+这样可以避免不常用的 MCP 服务器占用宝贵的上下文窗口空间。
+
+## 许可证
 
 [MIT](LICENSE)
