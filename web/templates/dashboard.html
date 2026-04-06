@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Manager</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <!-- 左侧边栏 -->
+    <div class="sidebar">
+        <div class="app-title">
+            <span class="title-text">MCP Manager</span>
+        </div>
+        <div class="status-bar">
+            <div class="connection-status">
+                <div class="connection-dot disconnected" id="connectionDot"></div>
+                <span id="connectionText">连接中...</span>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+                <svg class="theme-icon" id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- 动态生成的服务列表（包括 Web 进程） -->
+        <div class="component-list" id="componentList">
+            <!-- 由 JavaScript 动态填充 -->
+        </div>
+
+        <div class="control-section">
+            <div class="control-header">
+                <div class="control-label">系统控制</div>
+                <div class="last-update" id="lastUpdate">--:--:--</div>
+            </div>
+            <button class="btn btn-restart" onclick="restartAllServices()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+                重启全部
+            </button>
+            <button class="btn btn-stop" onclick="stopAllAndQuit()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="4" width="16" height="16" rx="2"/>
+                </svg>
+                停止全部
+            </button>
+        </div>
+    </div>
+
+    <!-- 右侧主区域 - 动态网格 -->
+    <div class="main-content">
+        <div class="log-grid" id="logGrid">
+            <!-- 由 JavaScript 动态生成 -->
+        </div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

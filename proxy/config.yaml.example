@@ -1,0 +1,95 @@
+# MCP Proxy 配置文件
+# 每个 profile 定义一个 MCP 代理或外部服务实例
+#
+# 将此文件复制为 config.yaml 并填入你的实际配置：
+#   cp config.yaml.example config.yaml
+#
+# 字段说明:
+#   name:          Web 界面显示名称（必填）
+#   type:          proxy（代理，默认）或 external（外部服务）
+#   port:          HTTP 服务端口（proxy 类型需要）
+#   log_file:      日志文件路径（可选，默认 proxy/logs/{profile_id}.log）
+#
+# proxy 类型额外字段:
+#   transport:     上游传输方式 — http 或 stdio
+#   tools:         工具白名单（可选，不填则暴露所有上游工具）
+#
+#   transport: http 时的字段:
+#     url:          上游 MCP 服务器的 HTTP 地址
+#     headers:      自定义请求头（可选）
+#
+#   transport: stdio 时的字段:
+#     shell:        完整的启动命令字符串（shell 模式）
+#     command:      启动命令（exec 模式，与 shell 二选一）
+#     args:         命令参数（exec 模式，配合 command 使用）
+#     env:          环境变量（可选）
+#     framing:      帧格式 — content-length（默认）或 newline
+#
+# external 类型额外字段:
+#   start_command: 启动命令（必须包含 --project mcp-manager 和 --name {profile_id}）
+#   stop_command:  停止命令（可选，默认通过 taskkill 终止进程）
+
+profiles:
+
+  # ===== proxy 类型示例 =====
+
+  # HTTP 上游代理 — 连接远程 HTTP MCP 服务器，过滤工具后重新暴露
+  jina-mcp-server:
+    name: "Jina"
+    type: proxy
+    transport: http
+    url: https://mcp.jina.ai/v1
+    headers:
+      Authorization: "Bearer YOUR_API_KEY"
+    tools:
+      - read_url
+    port: 3337
+
+  # stdio 上游代理（shell 模式）— 通过完整命令字符串启动上游
+  brave-search:
+    name: "Brave"
+    type: proxy
+    transport: stdio
+    framing: newline
+    shell: npx -y @modelcontextprotocol/server-brave-search
+    env:
+      BRAVE_API_KEY: "YOUR_API_KEY"
+    tools:
+      - brave_web_search
+    port: 3338
+
+  # stdio 上游代理（exec 模式）— 通过 command + args 启动上游
+  # my-stdio-server:
+  #   name: "My Stdio Server"
+  #   type: proxy
+  #   transport: stdio
+  #   command: python
+  #   args: ["path/to/server.py"]
+  #   framing: "content-length"
+  #   tools:
+  #     - my_tool
+  #   port: 3341
+
+  # 不指定 tools 则暴露上游所有工具
+  chrome-devtools:
+    name: "Chrome"
+    type: proxy
+    transport: stdio
+    framing: newline
+    shell: npx -y chrome-devtools-mcp@latest
+    port: 3339
+
+  # ===== external 类型示例 =====
+
+  # 外部服务 — 不经过代理层，由 Web 界面统一管理启动/停止和日志查看
+  # 接入要求：
+  #   1. start_command 中必须包含 --project mcp-manager（Web 界面通过此关键字发现进程）
+  #   2. start_command 中必须包含 --name {profile_id}（Web 界面通过此精确识别服务）
+  #   3. 外部服务需要支持 --project 和 --name 启动参数
+  #   4. log_file 指向外部服务的日志文件路径
+  #
+  # my-external-service:
+  #   name: "My Service"
+  #   type: external
+  #   start_command: "python path/to/server.py --transport http --host 127.0.0.1 --port 3000 --project mcp-manager --name my-external-service"
+  #   log_file: "path/to/logs/my-service.log"
