@@ -29,7 +29,8 @@ from mcp.types import Tool, CallToolResult, TextContent, ImageContent
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="[%(asctime)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("mcp-proxy")
 
@@ -650,6 +651,22 @@ async def run(profile_name: str, config_path: str, serve: bool = False, port: in
     config = load_config(config_path)
     profile = get_profile(config, profile_name)
 
+    # HTTP 服务模式时，同时输出日志到文件
+    if serve:
+        log_dir = Path(__file__).parent / "logs"
+        log_dir.mkdir(exist_ok=True)
+        log_file = log_dir / f"{profile_name}.log"
+
+        # 添加文件 handler
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter(
+            "[%(asctime)s] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        ))
+        logger.addHandler(file_handler)
+        logger.info(f"日志文件: {log_file}")
+
     transport = profile.get("transport", "stdio")
     allowed_tools = profile.get("tools", [])
 
@@ -803,6 +820,11 @@ def main():
         type=int,
         default=3337,
         help="HTTP 服务端模式监听端口（默认: 3337）",
+    )
+    parser.add_argument(
+        "--project",
+        default=None,
+        help="项目标识，用于进程管理",
     )
 
     args = parser.parse_args()
