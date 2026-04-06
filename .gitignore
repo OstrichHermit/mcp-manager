@@ -17,3 +17,5 @@ venv/
 *~
 .DS_Store
 Thumbs.db
+proxy/config.yaml
+/proxy-services
