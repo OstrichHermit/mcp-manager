@@ -37,7 +37,13 @@ PROXY_LOG_DIR.mkdir(parents=True, exist_ok=True)
 def load_proxy_config() -> dict:
     """加载 proxy 配置文件"""
     with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f) or {}
+
+
+def get_web_config() -> dict:
+    """获取 Web 服务器配置（host, port），默认值兜底"""
+    config = load_proxy_config()
+    return config.get('web', {})
 
 
 def get_all_profiles() -> List[dict]:
@@ -526,9 +532,14 @@ def run_server(host: str = '0.0.0.0', port: int = 8090):
 if __name__ == "__main__":
     import argparse
 
+    # 从配置文件读取默认值
+    web_config = get_web_config()
+    default_host = web_config.get('host', '0.0.0.0')
+    default_port = web_config.get('port', 8090)
+
     parser = argparse.ArgumentParser(description='MCP Manager Web Server')
-    parser.add_argument('--host', default='0.0.0.0', help='监听地址（默认: 0.0.0.0）')
-    parser.add_argument('--port', type=int, default=8090, help='监听端口（默认: 8090）')
+    parser.add_argument('--host', default=default_host, help=f'监听地址（默认: {default_host}）')
+    parser.add_argument('--port', type=int, default=default_port, help=f'监听端口（默认: {default_port}）')
     parser.add_argument('--project', default=None, help='项目标识，用于进程管理')
 
     args = parser.parse_args()

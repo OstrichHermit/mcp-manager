@@ -29,6 +29,11 @@
 #   start_command: 启动命令（必须包含 --project mcp-manager 和 --name {profile_id}）
 #   stop_command:  停止命令（可选，默认通过 taskkill 终止进程）
 
+# Web 管理界面配置
+web:
+  host: "0.0.0.0"   # 监听地址（默认 0.0.0.0，监听所有网卡）
+  port: 8090          # 监听端口
+
 profiles:
 
   # ===== proxy 类型示例 =====

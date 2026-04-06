@@ -99,7 +99,7 @@ web/start-web.bat
 web/start-web-visible.bat
 ```
 
-启动后访问 **Web 管理面板**：http://localhost:8090
+启动后访问 **Web 管理面板**：http://localhost:8090（地址和端口可在 `proxy/config.yaml` 的 `web` 段配置）
 
 在 Web 管理面板中你可以：
 - 一键启动/停止/重启所有服务
@@ -329,7 +329,28 @@ profiles:
 
 ### proxy/config.yaml
 
-配置文件位于 `proxy/config.yaml`，使用 YAML 字典格式，以 profile ID 为键：
+配置文件位于 `proxy/config.yaml`，包含两个顶级段：`web`（Web 管理面板配置）和 `profiles`（服务配置）。
+
+```yaml
+# Web 管理面板配置
+web:
+  host: "0.0.0.0"   # 监听地址（默认 0.0.0.0，监听所有网卡）
+  port: 8090          # 监听端口
+
+profiles:
+  jina-mcp-server: ...
+```
+
+**Web 配置字段**：
+
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `host` | Web 管理面板监听地址 | `0.0.0.0` |
+| `port` | Web 管理面板监听端口 | `8090` |
+
+> 💡 **提示**：修改 `web` 配置后需重启 Web 服务（`web/stop-web.bat` → `web/start-web.bat`）。
+
+**profiles 段**使用 YAML 字典格式，以 profile ID 为键：
 
 ```yaml
 profiles:
@@ -443,8 +464,8 @@ profiles:
 ### Web 管理面板无法访问
 
 1. 确认 Web 服务已启动：`web/start-web.bat`
-2. 检查端口 8090 是否被占用
-3. 在浏览器访问 http://localhost:8090
+2. 检查 `proxy/config.yaml` 中 `web.port` 配置的端口是否被占用
+3. 在浏览器访问 `http://localhost:{web.port}`
 
 ### 外部服务显示已停止（实际在运行）
 

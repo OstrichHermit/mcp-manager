@@ -99,7 +99,7 @@ web/start-web.bat
 web/start-web-visible.bat
 ```
 
-After starting, visit the **Web Dashboard** at: http://localhost:8090
+After starting, visit the **Web Dashboard** at: http://localhost:8090 (host and port are configurable in the `web` section of `proxy/config.yaml`)
 
 In the Web Dashboard you can:
 - Start/stop/restart all services with one click
@@ -331,7 +331,28 @@ profiles:
 
 ### proxy/config.yaml
 
-The configuration file is located at `proxy/config.yaml`, using YAML dictionary format with profile ID as the key:
+The configuration file is located at `proxy/config.yaml`, containing two top-level sections: `web` (Web Dashboard configuration) and `profiles` (service configuration).
+
+```yaml
+# Web Dashboard configuration
+web:
+  host: "0.0.0.0"   # Listen address (default: 0.0.0.0, listen on all interfaces)
+  port: 8090          # Listen port
+
+profiles:
+  jina-mcp-server: ...
+```
+
+**Web configuration fields**:
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `host` | Web Dashboard listen address | `0.0.0.0` |
+| `port` | Web Dashboard listen port | `8090` |
+
+> 💡 **Tip**: Restart the Web service (`web/stop-web.bat` → `web/start-web.bat`) after changing `web` configuration.
+
+**profiles section** uses YAML dictionary format with profile ID as the key:
 
 ```yaml
 profiles:
@@ -445,8 +466,8 @@ profiles:
 ### Web Dashboard Inaccessible
 
 1. Confirm the Web service is running: `web/start-web.bat`
-2. Check if port 8090 is already in use
-3. Visit http://localhost:8090 in your browser
+2. Check if the port configured in `web.port` of `proxy/config.yaml` is already in use
+3. Visit `http://localhost:{web.port}` in your browser
 
 ### External Service Shows as Stopped (Actually Running)
 
