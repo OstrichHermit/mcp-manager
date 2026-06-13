@@ -29,7 +29,7 @@ def main():
             pid = int(parts[2])
             try:
                 subprocess.run(
-                    ["taskkill", "/F", "/PID", str(pid)],
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
                     capture_output=True
                 )
             except Exception:
