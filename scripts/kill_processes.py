@@ -1,8 +1,8 @@
-"""Kill MCP Manager Web Server process.
+"""Kill all MCP Manager related Python processes.
 
 Usage:
-    python kill_web.py                # kill web server
-    python kill_web.py X Y ...        # skip processes matching X, Y, ...
+    python kill_processes.py                # kill all
+    python kill_processes.py X Y ...        # skip processes matching X, Y, ...
 """
 import subprocess
 import sys
@@ -20,8 +20,6 @@ def main():
 
     for line in result.stdout.strip().split("\n"):
         line = line.strip()
-        if "web_server.py" not in line:
-            continue
         if "mcp-manager" not in line:
             continue
         if any(exc in line for exc in excludes):

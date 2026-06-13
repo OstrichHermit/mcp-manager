@@ -363,24 +363,16 @@ async def stop_profile(profile_id: str):
 
 @app.post("/api/shutdown")
 async def shutdown_server():
-    """关闭 Web Server 本身"""
-    # 先停止所有 MCP 服务
-    config = load_proxy_config()
-    for profile_id in config.get('profiles', {}):
-        try:
-            stop_service(profile_id, config['profiles'][profile_id])
-        except:
-            pass
-
-    # 通过外部脚本关闭 Web Server（避免自己杀自己的不可靠性）
-    kill_script = PROJECT_ROOT / 'scripts' / 'kill_web.py'
+    """关闭所有服务并退出 Web Server"""
+    # 通过外部脚本杀掉所有 mcp-manager 相关进程（包括 web server 自己）
+    kill_script = PROJECT_ROOT / 'scripts' / 'kill_processes.py'
     if kill_script.exists():
         subprocess.Popen(
             ['cmd', '/c', f'ping 127.0.0.1 -n 2 >nul & python "{kill_script}"'],
             creationflags=subprocess.CREATE_NO_WINDOW,
             shell=True
         )
-    return {'success': True, 'message': 'Web Server 即将关闭...'}
+    return {'success': True, 'message': '所有服务即将关闭...'}
 
 
 @app.get("/api/profiles/{profile_id}/logs")
