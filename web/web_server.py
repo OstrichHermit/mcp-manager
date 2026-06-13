@@ -196,9 +196,9 @@ def stop_service(profile_id: str, profile_config: dict) -> bool:
         pattern = f'--profile {profile_id}'
         pid = find_process_by_pattern(pattern)
         if pid:
-            # 和 IM Claude Bridge 一致：subprocess.run 不带 creationflags
+            # /T: 同时终止子进程（stdio proxy 拉起的 npx 等子进程）
             subprocess.run(
-                ['taskkill', '/F', '/PID', str(pid)],
+                ['taskkill', '/F', '/T', '/PID', str(pid)],
                 capture_output=True
             )
         return True  # 无论是否在运行都返回成功
@@ -216,7 +216,7 @@ def stop_service(profile_id: str, profile_config: dict) -> bool:
             pid = find_process_by_pattern(profile_id)
             if pid:
                 subprocess.run(
-                    ['taskkill', '/F', '/PID', str(pid)],
+                    ['taskkill', '/F', '/T', '/PID', str(pid)],
                     capture_output=True
                 )
         return True
