@@ -305,21 +305,11 @@ async function restartAllServices() {
 async function stopAllAndQuit() {
     if (!confirm('确定要停止所有服务并关闭 Web 吗？')) return;
 
-    // 先停止所有 MCP 服务
-    const services = profiles.filter(p => p.id !== 'web_server');
-    for (const profile of services) {
-        await stopService(profile.id);
-        await new Promise(r => setTimeout(r, 200));
-    }
-
-    // 等待一下确保进程已关闭
-    await new Promise(r => setTimeout(r, 500));
-
-    // 关闭 Web Server
+    // /api/shutdown 会停止所有服务并关闭 Web Server
     try {
         await fetch('/api/shutdown', { method: 'POST' });
     } catch (e) {
-        // 即使失败也尝试关闭窗口
+        // 响应失败是正常的（服务端被杀了）
     }
 
     // 延迟关闭窗口

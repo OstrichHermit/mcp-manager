@@ -364,12 +364,6 @@ async def stop_profile(profile_id: str):
 @app.post("/api/shutdown")
 async def shutdown_server():
     """关闭 Web Server 本身"""
-    import os
-    import signal
-
-    # 获取当前进程 PID
-    pid = os.getpid()
-
     # 先停止所有 MCP 服务
     config = load_proxy_config()
     for profile_id in config.get('profiles', {}):
@@ -378,22 +372,15 @@ async def shutdown_server():
         except:
             pass
 
-    # 延迟关闭，确保响应能发送回去
-    import asyncio
-    asyncio.create_task(_delayed_shutdown(pid))
+    # 通过外部脚本关闭 Web Server（避免自己杀自己的不可靠性）
+    kill_script = PROJECT_ROOT / 'scripts' / 'kill_web.py'
+    if kill_script.exists():
+        subprocess.Popen(
+            ['cmd', '/c', f'ping 127.0.0.1 -n 2 >nul & python "{kill_script}"'],
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            shell=True
+        )
     return {'success': True, 'message': 'Web Server 即将关闭...'}
-
-
-async def _delayed_shutdown(pid: int):
-    """延迟关闭"""
-    await asyncio.sleep(1)
-    try:
-        # 使用 taskkill 关闭当前进程
-        subprocess.run(['taskkill', '/F', '/PID', str(pid)],
-                      creationflags=subprocess.CREATE_NO_WINDOW,
-                      capture_output=True)
-    except:
-        pass
 
 
 @app.get("/api/profiles/{profile_id}/logs")
