@@ -1,0 +1,7 @@
+03:58:00.148 INF go2rtc platform=windows/amd64 revision=b5948cf version=1.9.14
+03:58:00.210 INF config path="D:\\AgentWorkspace\\cat-litter-monitor\\..\\go2rtc\\go2rtc.yaml"
+03:58:00.714 INF [rtsp] listen addr=:8554
+03:58:00.714 INF [api] listen addr=:1984
+03:58:00.740 INF [webrtc] listen tcp addr=[::]:8888
+03:58:00.759 INF [webrtc] listen udp addr=192.168.2.187:8888
+exit with signal: terminated
