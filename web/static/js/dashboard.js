@@ -63,7 +63,7 @@ function renderLogGrid() {
 
     // 所有服务横向排列成一行，每个服务一列
     const count = services.length;
-    grid.style.gridTemplateColumns = `repeat(${count}, 1fr)`;
+    grid.style.gridTemplateColumns = `repeat(${count}, minmax(0, 1fr))`;
 
     services.forEach(profile => {
         const panel = document.createElement('div');
