@@ -16,6 +16,7 @@
     --text-timestamp: #9a9893;
     --accent-green: #7aaa74;
     --accent-red: #c87474;
+    --accent-orange: #c09858;
     --btn-restart-bg: #e0ddd5;
     --btn-restart-hover: #d4d0c8;
     --btn-stop-bg: #e8d4d4;
@@ -30,6 +31,7 @@
     --log-btn-text: #6a6863;
     --btn-start-bg: #e8f5e8;
     --btn-stop-action-bg: #f5e8e8;
+    --btn-restart-action-bg: #f5efe0;
 }
 
 /* 深色主题 */
@@ -50,6 +52,7 @@
     --text-timestamp: #6a6a6a;
     --accent-green: #7aaa74;
     --accent-red: #c87474;
+    --accent-orange: #d0aa60;
     --btn-restart-bg: #3a3a3a;
     --btn-restart-hover: #444444;
     --btn-stop-bg: #4a3030;
@@ -64,6 +67,7 @@
     --log-btn-text: #9a9a9a;
     --btn-start-bg: #2a3a2a;
     --btn-stop-action-bg: #3a2a2a;
+    --btn-restart-action-bg: #3a3324;
 }
 
 /* Theme transition */
@@ -364,6 +368,7 @@ body {
 
 .log-actions {
     display: flex;
+    align-items: center;
     gap: 6px;
     flex-shrink: 0;
 }
@@ -391,6 +396,17 @@ body {
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+
+/* SVG 图标统一尺寸，保证三个控制按钮宽高一致、内容居中 */
+.btn-action svg {
+    width: 12px;
+    height: 12px;
+    display: block;
 }
 
 .btn-action:disabled {
@@ -415,6 +431,16 @@ body {
 
 .btn-action.btn-stop:hover:not(:disabled) {
     background: var(--accent-red);
+    color: white;
+}
+
+.btn-action.btn-restart {
+    background: var(--btn-restart-action-bg);
+    color: var(--accent-orange);
+}
+
+.btn-action.btn-restart:hover:not(:disabled) {
+    background: var(--accent-orange);
     color: white;
 }
 

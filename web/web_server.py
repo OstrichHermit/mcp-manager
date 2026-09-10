@@ -152,12 +152,7 @@ def start_service(profile_id: str, profile_config: dict) -> bool:
         port = profile_config.get('port', 3337)
         command = f'python proxy.py --profile {profile_id} --serve --port {port} --project mcp-manager'
 
-        subprocess.Popen(
-            command,
-            cwd=str(PROXY_DIR),
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            shell=True
-        )
+        _spawn_detached(command, str(PROXY_DIR))
         return True
     else:
         # 启动 external 服务
@@ -178,13 +173,22 @@ def start_service(profile_id: str, profile_config: dict) -> bool:
                     work_dir = str(Path(part).parent)
                     break
 
-        subprocess.Popen(
-            start_cmd,
-            cwd=work_dir,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            shell=True
-        )
+        _spawn_detached(start_cmd, work_dir)
         return True
+
+
+def _spawn_detached(command: str, cwd: str):
+    """脱离 Web 进程树启动服务。
+
+    通过 cmd start 拉起后中间 cmd.exe 立即退出，服务进程成为孤儿进程，
+    不再挂在 Web Server 的进程树下 —— 重启/强杀 Web 时服务不会被连带杀掉。
+    """
+    subprocess.Popen(
+        f'start "" /b {command}',
+        cwd=cwd,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+        shell=True
+    )
 
 
 def stop_service(profile_id: str, profile_config: dict) -> bool:
@@ -252,6 +256,14 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+
+# 禁用浏览器缓存（手机浏览器会缓存 HTML/静态资源导致改版后看不到更新）
+@app.middleware("http")
+async def no_cache_middleware(request, call_next):
+    response = await call_next(request)
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 
 # WebSocket 连接管理
@@ -357,6 +369,28 @@ async def stop_profile(profile_id: str):
     try:
         stop_service(profile_id, profiles[profile_id])
         return {'success': True, 'message': f'Stopping {profile_id}...'}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/profiles/{profile_id}/restart")
+async def restart_profile(profile_id: str):
+    """重启指定服务（先停止并等待进程退出，再启动）"""
+    config = load_proxy_config()
+    profiles = config.get('profiles', {})
+
+    if profile_id not in profiles:
+        raise HTTPException(status_code=404, detail='Profile not found')
+
+    try:
+        stop_service(profile_id, profiles[profile_id])
+        # 等待进程真正退出（最多 10 秒），避免旧进程残留导致端口冲突
+        for _ in range(20):
+            if not get_service_status(profile_id, profiles[profile_id])['running']:
+                break
+            await asyncio.sleep(0.5)
+        start_service(profile_id, profiles[profile_id])
+        return {'success': True, 'message': f'Restarting {profile_id}...'}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -77,8 +77,9 @@ function renderLogGrid() {
                     ${escapeHtml(profile.name)}
                 </span>
                 <div class="log-actions">
-                    <button class="btn-action btn-start" id="btn-start-${profile.id}" onclick="startService('${profile.id}')" title="启动">&#9654;</button>
-                    <button class="btn-action btn-stop" id="btn-stop-${profile.id}" onclick="stopService('${profile.id}')" title="停止">&#9632;</button>
+                    <button class="btn-action btn-start" id="btn-start-${profile.id}" onclick="startService('${profile.id}')" title="启动"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 2v20l18-10z"/></svg></button>
+                    <button class="btn-action btn-stop" id="btn-stop-${profile.id}" onclick="stopService('${profile.id}')" title="停止"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></button>
+                    <button class="btn-action btn-restart" id="btn-restart-${profile.id}" onclick="restartService('${profile.id}')" title="重启"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></button>
                     <button class="log-btn" onclick="clearLog('${profile.id}')">清空</button>
                     <button class="log-btn" onclick="scrollToBottom('${profile.id}')">底部</button>
                 </div>
@@ -219,9 +220,11 @@ function updateLogStatusDot(profileId, running) {
 function updateButtonState(profileId, running) {
     const startBtn = document.getElementById(`btn-start-${profileId}`);
     const stopBtn = document.getElementById(`btn-stop-${profileId}`);
+    const restartBtn = document.getElementById(`btn-restart-${profileId}`);
 
     if (startBtn) startBtn.disabled = running;
     if (stopBtn) stopBtn.disabled = !running;
+    if (restartBtn) restartBtn.disabled = !running;
 }
 
 // ==================== 日志操作 ====================
@@ -293,6 +296,23 @@ async function stopService(profileId) {
         }
     } catch (e) {
         alert(`停止失败: ${e}`);
+    }
+}
+
+async function restartService(profileId) {
+    const btn = document.getElementById(`btn-restart-${profileId}`);
+    if (btn) btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/profiles/${profileId}/restart`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) {
+            alert(`重启失败: ${data.detail || data.message || '未知错误'}`);
+        } else if (!data.success) {
+            alert(`重启失败: ${data.message || '未知错误'}`);
+        }
+    } catch (e) {
+        alert(`重启失败: ${e}`);
     }
 }
 
