@@ -6,6 +6,7 @@ MCP Manager Proxy Web 控制界面
 import asyncio
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -115,6 +116,35 @@ def find_process_by_pattern(pattern: str) -> Optional[int]:
     return None
 
 
+_listen_pid_cache = {'cache': None, 'cache_time': 0}
+
+
+def _pid_by_port(port: int) -> Optional[int]:
+    """通过 netstat 查监听端口的 PID（1秒缓存，避免列表页重复全表查询）"""
+    now = time.time()
+    if _listen_pid_cache['cache_time'] and now - _listen_pid_cache['cache_time'] < 1:
+        cached = _listen_pid_cache['cache']
+        return cached.get(port) if cached else None
+    pids: Dict[int, Optional[int]] = {}
+    try:
+        result = subprocess.run(
+            ['netstat', '-ano'], capture_output=True, text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            # TCP    127.0.0.1:8340    0.0.0.0:0    LISTENING    1234
+            if len(parts) >= 5 and parts[3] == 'LISTENING' and parts[4].isdigit():
+                addr = parts[1]
+                if ':' in addr and addr.rsplit(':', 1)[1].isdigit():
+                    pids[int(addr.rsplit(':', 1)[1])] = int(parts[4])
+    except Exception:
+        pass
+    _listen_pid_cache['cache'] = pids
+    _listen_pid_cache['cache_time'] = now
+    return pids.get(port)
+
+
 def get_service_status(profile_id: str, profile_config: dict) -> dict:
     """获取服务状态"""
     service_type = profile_config.get('type', 'proxy')
@@ -123,9 +153,25 @@ def get_service_status(profile_id: str, profile_config: dict) -> dict:
         # proxy 类型：查找包含 proxy.py --profile {profile_id} 的进程
         pattern = f'--profile {profile_id}'
         pid = find_process_by_pattern(pattern)
-    else:
-        # external 类型：用 profile_id 查找（因为启动命令里没有 name）
-        pid = find_process_by_pattern(profile_id)
+        return {
+            'running': pid is not None,
+            'pid': pid,
+        }
+
+    # external 类型：优先按监听端口探测。
+    # 服务进程命令行不一定含 mcp-manager（如 uvx 拉起的 windows-mcp），
+    # 命令行匹配对这类包装器启动的服务不可靠
+    check_port = profile_config.get('check_port')
+    if check_port:
+        pid = _pid_by_port(int(check_port))
+        return {
+            'running': pid is not None,
+            'pid': pid,
+            'port': check_port,
+        }
+
+    # 无 check_port 时回退：用 profile_id 查找（因为启动命令里没有 name）
+    pid = find_process_by_pattern(profile_id)
 
     return {
         'running': pid is not None,
@@ -143,6 +189,34 @@ def get_web_server_status() -> dict:
     return {'running': pid is not None, 'pid': pid}
 
 
+def _upstream_port_from_url(url: Optional[str]) -> Optional[int]:
+    """从本地 http 上游 url 解析端口（远程 url 返回 None，无需预热）"""
+    if not url or ('127.0.0.1' not in url and 'localhost' not in url):
+        return None
+    try:
+        from urllib.parse import urlparse
+        return urlparse(url).port
+    except Exception:
+        return None
+
+
+def _port_listening(port: int, host: str = '127.0.0.1') -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+def _wait_for_port(port: int, timeout: float = 40.0) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _port_listening(port):
+            return True
+        time.sleep(1)
+    return False
+
+
 def start_service(profile_id: str, profile_config: dict) -> bool:
     """启动服务"""
     service_type = profile_config.get('type', 'proxy')
@@ -151,6 +225,14 @@ def start_service(profile_id: str, profile_config: dict) -> bool:
         # 启动 proxy 服务
         port = profile_config.get('port', 3337)
         command = f'python proxy.py --profile {profile_id} --serve --port {port} --project mcp-manager'
+
+        # 本地 http 上游：proxy 启动时会立即连上游（连不上直接退出），
+        # 所以要先拉起上游并等端口就绪
+        start_cmd = profile_config.get('start_command')
+        upstream_port = _upstream_port_from_url(profile_config.get('url'))
+        if start_cmd and upstream_port and not _port_listening(upstream_port):
+            _spawn_detached(start_cmd, str(PROJECT_ROOT))
+            _wait_for_port(upstream_port, timeout=40)
 
         _spawn_detached(command, str(PROXY_DIR))
         return True
@@ -204,6 +286,14 @@ def stop_service(profile_id: str, profile_config: dict) -> bool:
             subprocess.run(
                 ['taskkill', '/F', '/T', '/PID', str(pid)],
                 capture_output=True
+            )
+        # 本地 http 上游：配置了 stop_command 时一并停止上游服务
+        stop_cmd = profile_config.get('stop_command')
+        if stop_cmd:
+            subprocess.Popen(
+                stop_cmd,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                shell=True
             )
         return True  # 无论是否在运行都返回成功
     else:
