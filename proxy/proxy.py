@@ -307,15 +307,14 @@ class HttpUpstreamClient(UpstreamClient):
         self.timeout = timeout
         self._next_id = 1
         self._request_id_lock = asyncio.Lock()
+        # 有状态 streamable-http 上游（如本地 MCP 服务）在 initialize 后
+        # 返回 mcp-session-id，后续请求必须携带，否则上游返回 404
+        self._session_id: str | None = None
 
     async def connect(self) -> None:
-        """HTTP 模式不需要显式连接，验证上游可用性"""
+        """HTTP 模式：initialize 握手并保存上游会话 id"""
         try:
-            result = await self._send_request("initialize", {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {},
-                "clientInfo": {"name": "mcp-proxy", "version": "1.0.0"},
-            })
+            result = await self._initialize()
             logger.info(f"上游服务器信息: {result.get('serverInfo', {})}")
             logger.info("MCP 握手完成")
         except Exception as e:
@@ -349,8 +348,55 @@ class HttpUpstreamClient(UpstreamClient):
             self._next_id += 1
             return rid
 
+    def _base_headers(self) -> dict:
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            **self.headers,
+        }
+        if self._session_id:
+            headers["mcp-session-id"] = self._session_id
+        return headers
+
+    async def _initialize(self) -> dict:
+        """完整握手：initialize → 保存 session id → notifications/initialized"""
+        request_id = await self._next_request_id()
+        payload = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {},
+                "clientInfo": {"name": "mcp-proxy", "version": "1.0.0"},
+            },
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(self.url, json=payload, headers=self._base_headers())
+        if response.status_code == 404:
+            raise RuntimeError("上游返回 404")
+        self._session_id = response.headers.get("mcp-session-id", self._session_id)
+        result = self._extract_result(response)
+        if self._session_id:
+            # 有状态服务器的握手第二步：发 initialized 通知
+            notify = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                await client.post(self.url, json=notify, headers=self._base_headers())
+        return result
+
     async def _send_request(self, method: str, params: dict) -> dict:
-        """发送 JSON-RPC HTTP 请求"""
+        """发送 JSON-RPC HTTP 请求；会话失效（404）时自动重新握手并重试一次"""
+        try:
+            return await self._do_request(method, params)
+        except RuntimeError as e:
+            if "404" not in str(e):
+                raise
+            logger.warning("上游会话失效（404），重新握手后重试")
+            self._session_id = None
+            await self._initialize()
+            return await self._do_request(method, params)
+
+    async def _do_request(self, method: str, params: dict) -> dict:
         request_id = await self._next_request_id()
         payload = {
             "jsonrpc": "2.0",
@@ -359,15 +405,15 @@ class HttpUpstreamClient(UpstreamClient):
             "params": params,
         }
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-            **self.headers,
-        }
-
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(self.url, json=payload, headers=headers)
+            response = await client.post(self.url, json=payload, headers=self._base_headers())
 
+        if response.status_code == 404:
+            raise RuntimeError("上游返回 404（会话失效）")
+        self._session_id = response.headers.get("mcp-session-id", self._session_id)
+        return self._extract_result(response)
+
+    def _extract_result(self, response) -> dict:
         content_type = response.headers.get("content-type", "")
 
         if "text/event-stream" in content_type:
