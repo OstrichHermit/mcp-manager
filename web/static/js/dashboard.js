@@ -38,6 +38,8 @@ function renderSidebar() {
         const item = document.createElement('div');
         item.className = 'component-item';
         item.id = `sidebar-${profile.id}`;
+        item.dataset.profile = profile.id;
+        item.addEventListener('click', () => selectLogPanel(profile.id));
 
         item.innerHTML = `
             <div>
@@ -90,39 +92,24 @@ function renderLogGrid() {
         grid.appendChild(panel);
     });
 
-    initMobileLogTabs();
+    // 默认选中第一个有日志面板的进程
+    const first = services.find(p => document.getElementById(`panel-${p.id}`));
+    if (first) selectLogPanel(first.id);
 }
 
-// 移动端日志标签页：点击标签切换单个日志面板
-function initMobileLogTabs() {
-    const grid = document.querySelector('.log-grid');
-    if (!grid) return;
+// 点击进程栏芯片直接切换日志面板（移动端单面板模式）
+function selectLogPanel(profileId) {
+    const panel = document.getElementById(`panel-${profileId}`);
+    if (!panel) return;
 
-    let bar = document.getElementById('mobileTabBar');
-    if (bar) bar.remove();
-    bar = document.createElement('div');
-    bar.id = 'mobileTabBar';
-    bar.className = 'mobile-tab-bar';
+    document.querySelectorAll('.log-panel.active').forEach(p => p.classList.remove('active'));
+    panel.classList.add('active');
+    const content = panel.querySelector('.log-content');
+    if (content) content.scrollTop = content.scrollHeight;
 
-    const panels = grid.querySelectorAll('.log-panel');
-    panels.forEach((panel, i) => {
-        const titleEl = panel.querySelector('.log-title');
-        const btn = document.createElement('button');
-        btn.className = 'mobile-tab' + (i === 0 ? ' active' : '');
-        btn.textContent = titleEl ? titleEl.textContent.trim() : `日志 ${i + 1}`;
-        btn.onclick = () => {
-            bar.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
-            btn.classList.add('active');
-            panels.forEach(p => p.classList.remove('active'));
-            panel.classList.add('active');
-            const content = panel.querySelector('.log-content');
-            if (content) content.scrollTop = content.scrollHeight;
-        };
-        bar.appendChild(btn);
-    });
-
-    grid.parentElement.insertBefore(bar, grid);
-    if (panels.length) panels[0].classList.add('active');
+    document.querySelectorAll('.component-item.active').forEach(i => i.classList.remove('active'));
+    const item = document.getElementById(`sidebar-${profileId}`);
+    if (item) item.classList.add('active');
 }
 
 // ==================== WebSocket 连接 ====================
