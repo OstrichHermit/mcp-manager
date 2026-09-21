@@ -37,6 +37,9 @@ logger = logging.getLogger("mcp-proxy")
 # 默认超时时间（秒）
 DEFAULT_TIMEOUT = 30
 
+# asyncio StreamReader 单行上限（默认 64KB，截图等大 base64 JSON 会炸 LimitOverrunError）
+STREAM_LIMIT = 16 * 1024 * 1024
+
 
 # ============================================================
 # 配置加载
@@ -128,6 +131,7 @@ class StdioUpstreamClient(UpstreamClient):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
                 env=env,
+                limit=STREAM_LIMIT,
             )
         else:
             # exec 模式：使用 command + args
@@ -139,6 +143,7 @@ class StdioUpstreamClient(UpstreamClient):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
                 env=env,
+                limit=STREAM_LIMIT,
             )
 
         # MCP 握手
