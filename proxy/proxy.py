@@ -505,18 +505,26 @@ class HttpUpstreamClient(UpstreamClient):
 # 工具过滤逻辑
 # ============================================================
 
-def filter_tools(upstream_tools: list[dict], allowed_names: list[str]) -> list[dict]:
+def filter_tools(upstream_tools: list[dict], allowed_names: list[str],
+                 blocked_names: list[str] | None = None) -> list[dict]:
     """根据配置的工具名列表过滤上游工具
 
     Args:
         upstream_tools: 上游返回的原始工具定义列表
-        allowed_names: 配置中允许暴露的工具名列表
+        allowed_names: 配置中允许暴露的工具名列表（空 = 透传全部，黑名单仍生效）
+        blocked_names: 配置中禁止暴露的工具名列表（黑名单，优先级高于白名单）
 
     Returns:
         过滤后的工具定义列表
     """
-    # 如果允许列表为空，透传所有工具
+    blocked_set = set(blocked_names or [])
+    # 如果允许列表为空，透传所有工具（黑名单除外）
     if not allowed_names:
+        if blocked_set:
+            blocked_hit = {t.get("name", "") for t in upstream_tools} & blocked_set
+            if blocked_hit:
+                logger.info(f"黑名单过滤工具: {', '.join(sorted(blocked_hit))}")
+            return [t for t in upstream_tools if t.get("name", "") not in blocked_set]
         logger.info("未指定 tools 过滤列表，将透传所有工具")
         return list(upstream_tools)
 
@@ -527,7 +535,7 @@ def filter_tools(upstream_tools: list[dict], allowed_names: list[str]) -> list[d
     for tool in upstream_tools:
         tool_name = tool.get("name", "")
         found_names.add(tool_name)
-        if tool_name in allowed_set:
+        if tool_name in allowed_set and tool_name not in blocked_set:
             filtered.append(tool)
 
     # 检查配置中是否有工具名在上游不存在
@@ -763,12 +771,15 @@ async def run(profile_name: str, config_path: str, serve: bool = False, port: in
 
     transport = profile.get("transport", "stdio")
     allowed_tools = profile.get("tools", [])
+    blocked_tools = profile.get("blocked_tools", [])
 
     logger.info(f"启动 MCP Proxy - profile: {profile_name}, transport: {transport}")
     if allowed_tools:
         logger.info(f"允许暴露的工具: {', '.join(allowed_tools)}")
     else:
         logger.info("未指定工具过滤列表，将透传所有工具")
+    if blocked_tools:
+        logger.info(f"黑名单排除的工具: {', '.join(blocked_tools)}")
 
     # 创建上游客户端
     timeout = profile.get("timeout", DEFAULT_TIMEOUT)
@@ -820,7 +831,7 @@ async def run(profile_name: str, config_path: str, serve: bool = False, port: in
         sys.exit(1)
 
     # 过滤工具
-    filtered = filter_tools(all_tools, allowed_tools)
+    filtered = filter_tools(all_tools, allowed_tools, blocked_tools)
 
     if not filtered:
         logger.error("过滤后没有可用的工具，请检查配置")
