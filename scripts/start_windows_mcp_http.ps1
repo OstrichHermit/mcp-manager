@@ -8,4 +8,4 @@
 $env:PATH = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
 # 输出重定向到 log_file（manager Web 控制台的日志面板读这个文件）。
 # 用 cmd /c 做字节级重定向：PowerShell 原生 2>&1 会把 stderr 包装成 ErrorRecord，不干净
-cmd /c "uvx windows-mcp serve --transport streamable-http --host 127.0.0.1 --port 8340 >> D:\AgentWorkspace\mcp-manager\proxy\logs\windows-mcp-http.log 2>&1"
+cmd /c "uvx windows-mcp==0.8.6 serve --transport streamable-http --host 127.0.0.1 --port 8340 >> D:\AgentWorkspace\mcp-manager\proxy\logs\windows-mcp-http.log 2>&1"
