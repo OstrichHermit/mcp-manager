@@ -114,6 +114,7 @@ class StdioUpstreamClient(UpstreamClient):
         self.framing = framing  # "content-length" 或 "newline"
         self.shell = shell  # shell 模式的完整命令字符串
         self._process: asyncio.subprocess.Process | None = None
+        self._stderr_task: asyncio.Task | None = None
         self._next_id = 1
         self._request_id_lock = asyncio.Lock()
 
@@ -129,7 +130,7 @@ class StdioUpstreamClient(UpstreamClient):
                 self.shell,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
                 env=env,
                 limit=STREAM_LIMIT,
             )
@@ -141,10 +142,14 @@ class StdioUpstreamClient(UpstreamClient):
                 *self.args,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
                 env=env,
                 limit=STREAM_LIMIT,
             )
+
+        # 上游 stderr 持续收集到日志（曾因 DEVNULL 丢弃导致进程静默死亡无迹可查）
+        if self._process.stderr:
+            self._stderr_task = asyncio.create_task(self._drain_stderr())
 
         # MCP 握手
         init_result = await self._send_request("initialize", {
@@ -166,14 +171,30 @@ class StdioUpstreamClient(UpstreamClient):
         return tools
 
     async def call_tool(self, name: str, arguments: dict) -> dict:
-        """调用上游工具"""
-        return await self._send_request("tools/call", {
-            "name": name,
-            "arguments": arguments,
-        })
+        """调用上游工具（上游进程已退出时自动重启后重试）"""
+        if self._is_dead():
+            await self._restart()
+        try:
+            return await self._send_request("tools/call", {
+                "name": name,
+                "arguments": arguments,
+            })
+        except Exception as e:
+            # MCP 业务错误不重试；进程还活着（如超时）也不重试，避免工具被执行两次
+            if "上游返回错误" in str(e) or not self._is_dead():
+                raise
+            logger.warning(f"上游调用失败且进程已退出（{e}），重启后重试一次")
+            await self._restart()
+            return await self._send_request("tools/call", {
+                "name": name,
+                "arguments": arguments,
+            })
 
     async def close(self) -> None:
         """关闭子进程"""
+        if self._stderr_task:
+            self._stderr_task.cancel()
+            self._stderr_task = None
         if self._process and self._process.returncode is None:
             logger.info("关闭上游进程")
             self._process.terminate()
@@ -184,6 +205,28 @@ class StdioUpstreamClient(UpstreamClient):
                 await self._process.wait()
 
     # ---------- 内部方法 ----------
+
+    def _is_dead(self) -> bool:
+        """上游进程是否已退出"""
+        return self._process is None or self._process.returncode is not None
+
+    async def _restart(self) -> None:
+        """重启上游进程并重新握手"""
+        logger.warning("自动重启上游进程...")
+        await self.close()
+        await self.connect()
+        logger.warning("上游进程自动重启完成")
+
+    async def _drain_stderr(self) -> None:
+        """持续读取上游 stderr 写入日志，进程崩溃时保留现场"""
+        assert self._process and self._process.stderr
+        while True:
+            line = await self._process.stderr.readline()
+            if not line:
+                break
+            text = line.decode("utf-8", errors="replace").strip()
+            if text:
+                logger.warning(f"[上游stderr] {text}")
 
     async def _next_request_id(self) -> int:
         """获取下一个请求 ID（线程安全）"""
