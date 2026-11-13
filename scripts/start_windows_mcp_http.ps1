@@ -6,6 +6,9 @@
 #（2026-09-15，windows_mcp/powershell/service.py 的 _resolve_shell），
 # 不再依赖启动环境 PATH，但完整 PATH 仍是好习惯
 $env:PATH = [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path', 'User')
+# uv tool install 装好的常驻工具（依赖已锁定），直调 exe 避开 uvx 每次启动联网重解析
+# uvx 只锁主包版本、86 个依赖全裸奔，PyPI 依赖一更新缓存环境就作废，每次启动重装+下载（2026-11-13 排查）
+$env:PATH = 'C:\Users\ASUS\.local\bin;' + $env:PATH
 # 输出重定向到 log_file（manager Web 控制台的日志面板读这个文件）。
 # 用 cmd /c 做字节级重定向：PowerShell 原生 2>&1 会把 stderr 包装成 ErrorRecord，不干净
-cmd /c "uvx windows-mcp==0.8.6 serve --transport streamable-http --host 127.0.0.1 --port 8340 >> D:\AgentWorkspace\mcp-manager\proxy\logs\windows-mcp-http.log 2>&1"
+cmd /c "windows-mcp serve --transport streamable-http --host 127.0.0.1 --port 8340 >> D:\AgentWorkspace\mcp-manager\proxy\logs\windows-mcp-http.log 2>&1"
